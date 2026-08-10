@@ -1,10 +1,5 @@
-# Build output
+# Build output (cc65 intermediates -- .o/.s/.map -- also land here, see Makefile)
 build/
-
-# cc65 intermediates
-*.o
-*.s
-*.map
 
 # Downloaded emulator (399MB, not project source - see README for source)
 tools/Mesen2/

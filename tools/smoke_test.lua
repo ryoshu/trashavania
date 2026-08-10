@@ -5,7 +5,7 @@ for i = 1, 120 do
     emu.frameadvance()
 end
 
-gui.savescreenshot("/Users/rickyb/Documents/Projects/trashavania/build/smoke_test.png")
+gui.savescreenshot("build/smoke_test.png")
 
 emu.print("smoke test: screenshot captured")
 os.exit()

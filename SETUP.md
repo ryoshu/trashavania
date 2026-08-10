@@ -87,7 +87,19 @@ make run-fceux
 
 ## 4. Current status
 
-The build pipeline itself is verified working:
+**2026-08-10 update:** `src/crt0.s` — the one hand-written 6502 file
+(iNES header, reset handler, NMI handler, `_oam`/`_nmi_flag` storage) —
+had never actually been committed. The repo's `.gitignore` had a blanket
+`*.s` rule meant for cc65's generated intermediate assembly (which lands
+in `build/`, already covered by the `build/` ignore line), but it also
+matched the hand-written source file, silently keeping it out of every
+commit. It doesn't exist in git history at all. `.gitignore` has been
+fixed (removed the redundant `*.o`/`*.s`/`*.map` lines) and `crt0.s` has
+been rewritten from scratch to match `nes-uxrom.cfg`'s segments/exports.
+Also fixed: `tools/smoke_test.lua` had a hardcoded path from a different
+machine/user (`/Users/rickyb/...`), now a relative `build/smoke_test.png`.
+
+The build pipeline is verified working:
 
 - `make` produces a 65,552-byte ROM (16-byte header + 4×16KB PRG, no CHR
   ROM data — matches expected size exactly).
@@ -100,69 +112,85 @@ The build pipeline itself is verified working:
   no overlaps, nothing overflowing the fixed PRG bank, all symbols
   (`_main`, `_oam`, `_nmi_flag`, cc65 runtime helpers) resolved.
 
-## 5. Known issue: blank screen (unresolved)
+**Runtime behavior verified via headless fceux + Lua (no GUI/screenshot
+needed — see "Automated memory probing" below):** disassembling the built
+ROM confirms the reset routine, NMI vector/handler, and the
+`PPUCTRL = 0x80` / `PPUMASK = 0x1E` writes in `main()` all match the
+source exactly. More importantly, a scripted test that holds the D-pad
+Down button for 60 emulated frames shows `player_y` (and the OAM shadow
+copy) increase from 120 to 180 — i.e. **the full loop is provably
+running every frame**: NMI fires, `wait_vblank()` returns, `ppu_update()`
+DMAs the sprite to real PPU OAM, and `pad_poll()` reads input correctly.
+(A naive single-point memory read of `_nmi_flag` came back 0 and looked
+alarming at first — that was just a sampling race against
+`wait_vblank()`, which clears the flag almost immediately after NMI sets
+it; it wasn't a real bug. Don't rely on a single `_nmi_flag` sample as a
+liveness check — use an input-driven side effect like this instead.)
 
-Running `make run` opens Mesen2 successfully (process launches, renders),
-but the screen shows **blank instead of the expected floor row + moving
-sprite**. Not yet root-caused. Ruled out so far:
+## 5. Known issue: screen appears blank/grey (unresolved, but game logic is not the suspect anymore)
 
-- Not a link/layout bug (map file is clean, see above).
-- Not a build-reproducibility issue (rebuilds are deterministic, same
-  output).
-- Header/mapper detection is independently confirmed correct by fceux.
+Given the above, the CPU-side game logic (reset, NMI, main loop, PPU
+register writes, OAM DMA, input) is confirmed correct by direct
+disassembly and by observed behavior (sprite position responding to
+input). The visual "blank"/"grey" report is therefore more likely a
+**Mesen2 display/window issue, or the specific PPU *content* being
+genuinely hard to see**, not a dead program. Next session should:
 
-Not yet checked / worth trying next, roughly in order of suspicion:
+1. **Take an actual screenshot first** — this session couldn't
+   (`screencapture` had no Screen Recording permission for the terminal
+   app in use). Get that permission sorted (System Settings → Privacy &
+   Security → Screen Recording → enable your terminal app, then fully
+   quit/reopen it) before re-investigating this.
+2. With a screenshot in hand, check the obvious things: is the Mesen2
+   window actually unpaused / rendering (not stuck on a "load" dialog or
+   paused state)? Does toggling anything change what's shown?
+3. **Floor row placement** — still an open, unconfirmed suspicion.
+   `draw_floor()` in `main.c` writes to nametable row 27 of 30, very
+   close to the bottom edge. Mesen's log reports a 224-line video mode
+   (NES visible area is 224 of 240 lines, 8 lines cropped top+bottom).
+   Row 27 spans pixel Y 216–223, which should be just inside the visible
+   window, but try moving it to row 14 (screen middle) to rule out an
+   off-by-one in the crop math.
+4. **PPU VRAM (nametable/attribute table/CHR RAM) is never explicitly
+   cleared** by `crt0.s` — only CPU-side RAM is. `main.c` writes the
+   floor row and one CHR tile explicitly but never touches the attribute
+   table; if that's garbage on power-on it affects *color*, not whether
+   the tile shows at all, but worth checking with the PPU viewer.
+5. Use Mesen2's built-in debugger (Tools → Debugger, PPU viewer / nametable
+   viewer) to directly inspect live nametable/pattern table/OAM/palette
+   contents — much faster than guessing from source once you can actually
+   see the Mesen window.
 
-1. **PPU VRAM (nametable/attribute table/CHR RAM) is never explicitly
-   cleared.** `crt0.s` only zeroes CPU-side internal RAM ($0000-$07FF);
-   the *PPU's* VRAM (nametables, attribute tables, CHR RAM) is separate
-   memory reachable only through `$2006`/`$2007`, and its power-on content
-   is emulator/hardware-dependent. `main.c` writes the floor row and one
-   CHR tile explicitly, but never touches the attribute table — if that
-   comes up as unexpected garbage it *shouldn't* cause a fully blank
-   screen (the explicitly-written tile should still show), but it's the
-   most likely thing to check first with a debugger/memory viewer.
-2. **Floor row placement.** `draw_floor()` in `main.c` writes to nametable
-   row 27 of 30 — very close to the bottom edge. Mesen's log reported a
-   224-line video mode (NES visible area is 224 of 240 lines, i.e. 8 lines
-   cropped top and bottom). Row 27 spans pixel Y 216–223, which should
-   still be just inside the visible window, but this is a guess, not
-   confirmed — try moving the floor row to the middle of the screen (e.g.
-   row 14) to rule out an off-by-one in the crop math.
-3. **Rule out "no rendering happened at all" vs "specific content
-   missing"**: temporarily set the backdrop color (`palette[0]`) to
-   something loud like white, or fill the *entire* nametable with tile 1
-   instead of just one row, to see whether *anything* changes on screen.
-   If the screen stays truly blank even then, the bug is in the
-   PPUCTRL/PPUMASK enable sequence or vblank timing in `main.c`, not the
-   content-drawing calls.
-4. Use Mesen2's built-in debugger (Tools → Debugger, or the PPU viewer) to
-   directly inspect nametable/pattern table/OAM contents at runtime rather
-   than guessing from source — much faster than the automated-screenshot
-   approach below.
+### Automated memory probing (this is what actually worked — use this, not screenshots, for headless verification)
 
-### Automated screenshot attempt (didn't pan out here — may work for you)
-
-`tools/smoke_test.lua` runs 120 frames then calls `gui.savescreenshot(...)`
-via `fceux --loadlua tools/smoke_test.lua build/trashavania.nes`. On this
-machine it failed with Qt threading errors ("Cannot move to target
-thread", "loading two sets of Qt binaries") — almost certainly caused by
-this machine's pre-existing `qt` Homebrew formula clashing with `fceux`'s
-`qtbase` dependency at the dynamic-linker level (see the fceux install
-note above). This is machine-specific and may just work on a clean
-machine:
+`fceux --loadlua <script> build/trashavania.nes` runs fine even in this
+sandboxed/headless-ish environment as long as the Lua script only uses
+`memory.readbyte()` / `joypad.set()` / `io.write()` — i.e. avoid
+`gui.savescreenshot()`, which hits Qt threading errors on this machine
+("Cannot move to target thread") likely from the same `qt`/`qtbase`
+Homebrew clash noted in the install steps above. Reading CPU RAM directly
+(the `_oam` shadow buffer at `$0200`, `player_x`/`player_y` at `$0300`
+(see `build/trashavania.map` for current addresses — they can shift
+between builds), injecting `joypad.set(1, {down=true})` and checking for
+movement) is a reliable, screenshot-free way to confirm the game loop is
+alive. This is the same technique that untangled the false "NMI never
+fires" alarm above — prefer it over a screenshot when you just need a
+pass/fail liveness check rather than a visual layout check.
 
 ```sh
-fceux --sound 0 --loadlua tools/smoke_test.lua build/trashavania.nes
-ls build/smoke_test.png
+fceux --sound 0 --loadlua your_probe.lua build/trashavania.nes
 ```
 
-If it works, you get an actual screenshot to inspect instead of relying on
-a human looking at the Mesen window.
+`tools/smoke_test.lua` (the `gui.savescreenshot()`-based script) is left
+as-is for a machine where the Qt conflict doesn't bite — try it first on
+a clean machine before reaching for the memory-probe approach above.
 
 ## 6. Next steps
 
-1. Root-cause and fix the blank screen (see above).
+1. Get an actual screenshot (fix Screen Recording permission for the
+   terminal app first) and root-cause the visual blank/grey report — see
+   section 5. This is very likely a small, specific issue now (display
+   setting or floor-row-position), not a fundamentally broken program.
 2. Add actual "Hello World" (or in-universe: "Castle Refuse has awakened.")
    text rendering — requested as a clearer, more unambiguous visual smoke
    test than the current floor+sprite demo. Needs a small hand-authored
