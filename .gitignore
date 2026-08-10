@@ -1,0 +1,13 @@
+# Build output
+build/
+
+# cc65 intermediates
+*.o
+*.s
+*.map
+
+# Downloaded emulator (399MB, not project source - see README for source)
+tools/Mesen2/
+
+# macOS
+.DS_Store
