@@ -50,6 +50,16 @@ static unsigned char rand8(void) {
 
 /* ------------------------------------------------------------------ */
 
+void clear_enemies(void) {
+    unsigned char i;
+    for (i = 0; i < NE; ++i) {
+        if (e_type[i]) {
+            spawn_effect(e_x[i] + 4, e_y[i] + 4);
+            e_type[i] = 0;
+        }
+    }
+}
+
 void entities_reset(void) {
     unsigned char i;
     for (i = 0; i < NE; ++i) e_type[i] = 0;
@@ -181,7 +191,7 @@ static void damage_enemy(unsigned char i, unsigned char dmg) {
     if (e_flash[i]) return;             /* brief mercy so splat doesn't melt */
     if (e_hp[i] > dmg) {
         e_hp[i] -= dmg;
-        e_flash[i] = 8;
+        e_flash[i] = 14;    /* > swipe active window: one hit per swing */
         audio_sfx(SFX_HIT);
     } else {
         kill_enemy(i);

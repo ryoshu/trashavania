@@ -113,6 +113,7 @@ unsigned char coll_at(unsigned char x, unsigned char y);
 
 /* entities.c */
 void entities_reset(void);
+void clear_enemies(void);
 void spawn_room_entities(const unsigned char *sp);
 unsigned char spawn_enemy(unsigned char type, unsigned char x, unsigned char y);
 unsigned char spawn_pickup(unsigned char type, unsigned char x, unsigned char y);

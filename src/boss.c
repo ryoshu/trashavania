@@ -7,10 +7,10 @@
 #define BOSS_MAX_HP 12
 
 /* weak point: the glowing opening at the dumpster's front-bottom */
-#define WEAK_X 144
-#define WEAK_Y 192
-#define WEAK_W 16
-#define WEAK_H 16
+#define WEAK_X 140
+#define WEAK_Y 188
+#define WEAK_W 24
+#define WEAK_H 20
 
 /* lid rest position on top of the dumpster */
 #define LID_REST_X 152
@@ -19,6 +19,7 @@
 unsigned char boss_active, boss_hp, boss_defeated;
 static unsigned char phase, timer, toss_count, accel;
 static unsigned char lid_x, lid_y, lid_airborne;
+static unsigned char hit_cool;      /* one hit per swing, not per frame */
 
 enum {
     BP_IDLE1, BP_TELE, BP_RISE, BP_TRACK, BP_DROP, BP_HOLD, BP_RETURN,
@@ -35,6 +36,7 @@ void boss_init(void) {
     lid_x = LID_REST_X;
     lid_y = LID_REST_Y;
     lid_airborne = 0;
+    hit_cool = 0;
 }
 
 static void next_phase(unsigned char p, unsigned char t) {
@@ -57,6 +59,7 @@ void boss_hurt(unsigned char dmg) {
     lid_x = LID_REST_X;
     lid_y = LID_REST_Y;
     lid_airborne = 0;
+    clear_enemies();            /* summoned bats die with their master */
 }
 
 void boss_frame(void) {
@@ -165,9 +168,11 @@ void boss_frame(void) {
         }
     }
 
-    /* weak point takes hits only while open */
-    if (phase == BP_OPEN) {
+    /* weak point takes hits only while open (one hit per swing) */
+    if (hit_cool) --hit_cool;
+    if (phase == BP_OPEN && !hit_cool) {
         if (attack_hits_box(WEAK_X, WEAK_Y, WEAK_W, WEAK_H)) {
+            hit_cool = 24;
             boss_hurt(1);
         }
     }

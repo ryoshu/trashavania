@@ -68,3 +68,15 @@ without an emulator in the loop.
 - boss.c: Count Dumpula -- lid telegraph/rise/track/slam cycle, garbage
   toss arcs, boss-bat summons, weak point open phase; accelerates below
   half HP; death -> Golden Garbage drop -> collecting it wins the game.
+
+## Boss verified end-to-end
+
+- Scripted fight in fceux: approach -> survive lid slams (hp 8->6) ->
+  swipe weak point during OPEN phases -> boss dies -> Golden Garbage drops ->
+  collect -> victory screen with rank ("TRASH PANDA SUPREME", time 0:31).
+- **Bug found by probe**: attack_hits_box returned true for every frame of
+  a 10-frame swipe -> one swing dealt 10 damage. Added a 24-frame boss
+  hit-cooldown and raised enemy hit-flash to 14 frames (one hit per swing).
+- Weak point box widened 4px: a player pressed against the dumpster wall
+  swiped from x=160 but the box ended at 159 (guaranteed whiff).
+- Summoned bats now die with their master (clear_enemies on boss death).
