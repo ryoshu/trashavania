@@ -1,64 +1,165 @@
-#include "nes.h"
+/* main.c -- Trashavania: state machine + fixed-step main loop.
+   Frame order (brief section 16): input -> player -> entities -> collision
+   -> animation -> build OAM; PPU commits happen at the top of the next
+   frame inside vblank (OAM DMA, buffered VRAM writes, scroll reset). */
+#include "game.h"
 
-static const unsigned char palette[32] = {
-    0x0F, 0x01, 0x11, 0x21,   /* bg 0: black, dark blue, med blue, light blue  (Garbage Grove sky) */
-    0x0F, 0x00, 0x10, 0x30,   /* bg 1: black, grays                            (masonry) */
-    0x0F, 0x18, 0x28, 0x38,   /* bg 2: black, sickly greens */
-    0x0F, 0x04, 0x14, 0x24,   /* bg 3: black, purples */
-    0x0F, 0x17, 0x27, 0x30,   /* spr 0: Jimothy - black, browns, white mask */
-    0x0F, 0x16, 0x26, 0x36,   /* spr 1: reserved (enemies) */
-    0x0F, 0x01, 0x11, 0x21,   /* spr 2: reserved */
-    0x0F, 0x19, 0x29, 0x39    /* spr 3: reserved (pickups) */
-};
+#pragma bss-name (push, "ZEROPAGE")
+unsigned char frame_cnt;
+unsigned char oam_idx;
+unsigned char pad, pad_prev, pad_new;
+unsigned char game_state;
+unsigned char cur_room;
+unsigned int px, py;
+int pvy;
+unsigned char pixx, pixy;
+unsigned char on_ground, facing_left, crouching;
+unsigned char jump_buf, coyote;
+unsigned char hp, snacks, weapon;
+unsigned char inv_timer, attack_timer, knock_timer, knock_dir;
+unsigned char anim_timer, anim_frame;
+#pragma bss-name (pop)
 
-/* Tile 1: a solid 8x8 block used for both the floor strip and the Jimothy
-   placeholder sprite until real CHR art exists. */
-static const unsigned char tile1[16] = {
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, /* plane 0 */
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  /* plane 1 -> color index 1 */
-};
+#define PPUCTRL_GAME (PPUCTRL_NMI_ENABLE | PPUCTRL_BG_PT_1000)
 
-#define PLAYER_START_X 120
-#define PLAYER_START_Y 120
+/* ------------------------------------------------------------------ */
 
-static unsigned char player_x = PLAYER_START_X;
-static unsigned char player_y = PLAYER_START_Y;
+static void new_game(void) {
+    cur_room = 0;
+    hp = MAX_HP;
+    snacks = 0;
+    weapon = 0;
+}
 
-static void draw_floor(void) {
-    unsigned char col;
-    ppu_set_addr(0x2360); /* nametable row 27 (near bottom of screen) */
-    for (col = 0; col < 32; ++col) {
-        PPUDATA = 1;
+static void load_room(void) {
+    ppu_off();
+    clear_nametable();
+    draw_room(cur_room);
+    player_init(rooms[cur_room].start_x, rooms[cur_room].start_y);
+    vbuf_reset();
+    ppu_on();
+}
+
+void enter_state(unsigned char st) {
+    game_state = st;
+    switch (st) {
+    case ST_TITLE:
+        ppu_off();
+        clear_nametable();
+        draw_text(10, 6, "TRASHAVANIA");
+        draw_text(3, 8, "THE ADVENTURES OF JIMOTHY");
+        draw_text(4, 13, "IT WAS A MISERABLE NIGHT");
+        draw_text(7, 14, "TO HAVE A CURSE.");
+        draw_text(10, 20, "PRESS START");
+        ppu_on();
+        break;
+    case ST_GAME:
+        load_room();
+        break;
+    case ST_DEATH:
+        ppu_off();
+        clear_nametable();
+        draw_text(6, 10, "JIMOTHY HAS EXPIRED.");
+        draw_text(5, 12, "THE TRASH REMAINS UNCLAIMED.");
+        draw_text(8, 18, "PRESS START");
+        ppu_on();
+        break;
+    case ST_VICTORY:
+        ppu_off();
+        clear_nametable();
+        draw_text(4, 8, "THE GOLDEN GARBAGE IS YOURS!");
+        draw_text(4, 12, "JIMOTHY HAS NO MASTER.");
+        draw_text(4, 13, "JIMOTHY HAS SNACKS.");
+        draw_text(8, 20, "PRESS START");
+        ppu_on();
+        break;
     }
 }
 
-int main(void) {
-    ppu_write(0x0010, tile1, 16);   /* load tile 1 into CHR RAM */
-    ppu_write(0x3F00, palette, 32);
-    draw_floor();
+/* ------------------------------------------------------------------ */
 
-    oam[0] = PLAYER_START_Y;
-    oam[1] = 1;    /* tile index */
-    oam[2] = 0;    /* attributes: palette 0, no flip */
-    oam[3] = PLAYER_START_X;
+static void check_door(void) {
+    unsigned char dest;
+    if (coll_at(pixx + 8, pixy + 12) != COLL_DOOR) return;
+    dest = rooms[cur_room].door_dest;
+    if (dest >= ROOM_COUNT) {
+        enter_state(ST_VICTORY);
+    } else {
+        cur_room = dest;
+        load_room();
+    }
+}
 
-    PPUCTRL = PPUCTRL_NMI_ENABLE;
-    PPUMASK = PPUMASK_SHOW_BG | PPUMASK_SHOW_SPR |
-              PPUMASK_SHOW_BG_LC | PPUMASK_SHOW_SPR_LC;
+static void game_frame(void) {
+    if (pad_new & PAD_START) {
+        game_state = ST_PAUSE;
+        vbuf_text(13, 2, "PAUSED");
+        return;
+    }
+    player_frame();
+    check_door();
+    if (hp == 0) {
+        enter_state(ST_DEATH);
+        return;
+    }
+    player_draw();
+}
+
+static void pause_frame(void) {
+    if (pad_new & PAD_START) {
+        game_state = ST_GAME;
+        vbuf_text(13, 2, "      ");
+    }
+    player_draw();
+}
+
+/* ------------------------------------------------------------------ */
+
+void main(void) {
+    load_chr();
+    enter_state(ST_TITLE);
 
     while (1) {
-        unsigned char pad;
-
+        /* ---- vblank window: commit graphics ---- */
         wait_vblank();
-        ppu_update();
+        ppu_update();            /* OAM DMA first (must finish in vblank) */
+        vbuf_flush();
+        PPUSTATUS;               /* PPUADDR use above corrupts scroll: reset */
+        PPUCTRL = PPUCTRL_GAME;
+        PPUSCROLL = 0;
+        PPUSCROLL = 0;
 
+        /* ---- input ---- */
+        pad_prev = pad;
         pad = pad_poll();
-        if (pad & PAD_LEFT)  { if (player_x > 8)   player_x--; }
-        if (pad & PAD_RIGHT) { if (player_x < 240) player_x++; }
-        if (pad & PAD_UP)    { if (player_y > 8)   player_y--; }
-        if (pad & PAD_DOWN)  { if (player_y < 200) player_y++; }
+        pad_new = pad & (pad ^ pad_prev);
 
-        oam[0] = player_y;
-        oam[3] = player_x;
+        /* ---- logic + sprite build ---- */
+        oam_idx = 0;
+        switch (game_state) {
+        case ST_TITLE:
+            if (pad_new & PAD_START) {
+                new_game();
+                enter_state(ST_GAME);
+            }
+            break;
+        case ST_GAME:
+            game_frame();
+            break;
+        case ST_PAUSE:
+            pause_frame();
+            break;
+        case ST_DEATH:
+            if (pad_new & PAD_START) {
+                hp = MAX_HP;
+                enter_state(ST_GAME);
+            }
+            break;
+        case ST_VICTORY:
+            if (pad_new & PAD_START) enter_state(ST_TITLE);
+            break;
+        }
+        hide_rest_of_oam();
+        ++frame_cnt;
     }
 }

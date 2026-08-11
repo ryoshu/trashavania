@@ -14,15 +14,22 @@ NESLIB      := $(CC65_PREFIX)/share/cc65/lib/nes.lib
 TARGET      := $(BUILD_DIR)/trashavania.nes
 MAP         := $(BUILD_DIR)/trashavania.map
 
-C_SOURCES   := $(SRC_DIR)/main.c $(SRC_DIR)/ppu.c $(SRC_DIR)/pad.c
+C_SOURCES   := $(SRC_DIR)/main.c $(SRC_DIR)/render.c $(SRC_DIR)/player.c \
+               $(SRC_DIR)/assets.c $(SRC_DIR)/ppu.c $(SRC_DIR)/pad.c
 ASM_SOURCES := $(SRC_DIR)/crt0.s
 
 OBJECTS     := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_SOURCES)) \
                $(patsubst $(SRC_DIR)/%.s,$(BUILD_DIR)/%.o,$(ASM_SOURCES))
 
-.PHONY: all clean run run-fceux
+.PHONY: all clean run run-fceux assets
 
 all: $(TARGET)
+
+# Regenerate src/assets.c/.h + PNG previews from tools/genassets.py
+$(SRC_DIR)/assets.c $(SRC_DIR)/assets.h: tools/genassets.py | $(BUILD_DIR)
+	python3 tools/genassets.py
+
+assets: $(SRC_DIR)/assets.c
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
