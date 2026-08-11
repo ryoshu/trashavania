@@ -112,6 +112,15 @@ local function step()
       end
       io.write("DUMP " .. string.format("%04X", a) .. " " ..
                table.concat(out, " ") .. "\n")
+    elseif op == "ppu" then
+      local a, n = string.match(arg, "^(%x+):(%d+)$")
+      a = tonumber(a, 16)
+      local out = {}
+      for k = 0, tonumber(n) - 1 do
+        out[#out + 1] = string.format("%02X", ppu.readbyte(a + k))
+      end
+      io.write("PPU " .. string.format("%04X", a) .. " " ..
+               table.concat(out, " ") .. "\n")
     elseif op == "read" then
       local name, addr = string.match(arg, "^([%w_]+):(%x+)$")
       io.write(string.format("VAR %s = %d\n", name,

@@ -1,7 +1,8 @@
 # Trashavania: The Adventures of Jimothy
 
 A complete, playable NES ROM. Gothic comedy action-platformer starring
-**Jimothy**, a brave, hungry, questionably hygienic raccoon who must cross
+**Jimothy**, a brave, hungry, questionably hygienic raccoon -- famously
+bent over by a spinal deformity, tail up, head low -- who must cross
 Castle Refuse, recover the legendary Golden Garbage, and defeat the
 immortal lord of the castle: **Count Dumpula**.
 

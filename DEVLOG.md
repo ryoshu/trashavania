@@ -123,3 +123,73 @@ without an emulator in the loop.
   physical flash cart), Mesen2 GUI pass (its headless testrunner doesn't
   work on this machine; `make run` opens it for a human), stretch content
   (Fishbone, Possum Knight, miniboss).
+
+## Quality pass: hunched Jimothy, room overhaul, title portrait
+
+Feedback round: "Jimothy is known for having a spinal deformity so he's
+more bent over. Also the current Jimothy sprite is flipped the wrong way
+horizontally. The levels could be better. Nintendo level quality."
+
+### Jimothy redesign
+
+- All frames redrawn. The old art's face and tail were ambiguous enough
+  that the sprite read as facing backwards; the new silhouette is
+  unambiguous left-to-right: raised ringed tail behind, high arched back
+  (the spinal deformity is now the defining feature of the pose), head
+  carried LOW AND FORWARD with black mask band, white eyes, white muzzle
+  and black nose at the leading edge.
+- Face rules learned by iterating on 8x zoomed previews: keep a full
+  black mask row between the eye row and the white muzzle (else they
+  merge into one blob), make ears solid black triangles (1px-wide gray
+  interiors read as castle crenellation).
+- Verified IN-GAME, not just in previews: scripted fceux run walking
+  right then left, cropped screenshots confirm the snout leads in both
+  directions. (The engine's hflip logic was always correct -- the art was
+  the lie.)
+
+### Room overhaul + title
+
+- 8 new metatiles, all collision-NONE dressing: gravestone, dead-tree
+  trunk + twisted branch, hanging chain, stone pillar, wall torch, ivy,
+  stained-glass window.
+- Every room redressed (graveyard grove with a dead tree; crypt with
+  pillars/chains/torches; chapel with alternating stained glass; boss
+  arena with a graveyard clump under the moon). Two optional secret
+  platforms with Bigsnack rewards (grove, crypt). Every collision
+  landmark the playthrough script depends on was preserved -- decoration
+  only touches sky cells.
+- Title screen: the idle frame upscaled 2x at build time into 24
+  background tiles, drawn as a 32x48 portrait between the title and the
+  tagline; BG palette 0 is retinted on the title only (restored on room
+  load).
+
+### Two real bugs found by re-verification
+
+- **Stale-header build bug**: Makefile had no header dependencies, so
+  regenerating assets.h (CHR_BG_LEN grew past 2KB) left render.o compiled
+  against the old length -- everything past background tile 128 was never
+  uploaded to CHR RAM and rendered as fceux's striped RAM-init pattern.
+  Fix: .c -> game.h/assets.h prerequisites in the Makefile.
+- **CHR RAM corruption of the 'B' glyph** (the sequel to the shipped
+  vblank-guard fix): the PPUSTATUS guard proves we are IN vblank but not
+  how much vblank REMAINS. A HUD flush that started late spilled past the
+  end of vblank; mid-render, the PPU address register is live, and the
+  writes for nametable $2022/$202C landed in the pattern table at
+  $1022/$102C -- health-pip and digit bytes overwrote the letter B.
+  Diagnosed by probing PPU space from Lua (new `ppu:` probe command):
+  nametable correct, OAM empty, font tile bytes wrong. Fix: wait_vblank
+  now syncs to a FRESH vblank edge (clears any stale NMI flag first), so
+  commits always start at the top of the 2273-cycle window. Costs one
+  frame only on frames that already overran.
+- The frame-timing change perturbed the boss fight enough that the old
+  script whiffed entire weak-point windows after a single bat clip
+  (knockback moved Jimothy out of fixed swipe range). The script now
+  re-approaches before every swipe, 26-frame spacing to clear the 24-frame
+  hit cooldown. This is script robustness, not a game change.
+
+### Re-verified
+
+Full power-on -> victory playthrough on the final ROM: all five rooms,
+boss killed in 4 cycles (12 -> 8 -> 4 -> 3 -> 0), finished at 4/8 hp,
+victory rank screen text pixel-clean. Frame rate probed at 60fps in grove
+and boss arena. Screenshots + root ROM refreshed.

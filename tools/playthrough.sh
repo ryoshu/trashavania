@@ -56,10 +56,17 @@ S="$S;waitmem:08:04;wait:20;shot:$P/p_boss.ppm;read:hp:16;dump:3FA:12"
 # --- Room 4: Count Dumpula. Per cycle: when the lid drops (phase 4) run
 # left from under it; when the weak point opens (phase 0x0B) run right to
 # the dumpster and swipe. 12 hits needed at ~4 hits per cycle; allow 5.
-for i in 1 2 3 4 5; do
-  S="$S;waitmem:3FD:04;hold:left;wait:30;release"
-  S="$S;waitmem:3FD:0B;hold:right;wait:36;release"
-  S="$S;tap:b;wait:23;tap:b;wait:23;tap:b;wait:23;tap:b;wait:23;tap:b;wait:23"
+# Re-approach (hold right) before EVERY swipe, not just at window start:
+# a bat clip or garbage hit knocks Jimothy out of range and a fixed-position
+# barrage then whiffs the whole cycle. 26-frame spacing clears hit_cool=24.
+for i in 1 2 3 4 5 6; do
+  S="$S;waitmem:3FD:04;hold:left;wait:34;release"
+  S="$S;waitmem:3FD:0B;hold:right;wait:34;release"
+  S="$S;hold:right;wait:6;release;tap:b;wait:18"
+  S="$S;hold:right;wait:6;release;tap:b;wait:18"
+  S="$S;hold:right;wait:6;release;tap:b;wait:18"
+  S="$S;hold:right;wait:6;release;tap:b;wait:18"
+  S="$S;hold:right;wait:6;release;tap:b;wait:18"
   S="$S;read:bosshp:3FB;read:hp:16"
 done
 S="$S;waitmem:3FC:01;shot:$P/p_dying.ppm;wait:240"

@@ -3,7 +3,7 @@
 #define ASSETS_H
 
 #define CHR_SPRITES_LEN 1632
-#define CHR_BG_LEN 1504
+#define CHR_BG_LEN 2352
 extern const unsigned char chr_sprites[CHR_SPRITES_LEN];
 extern const unsigned char chr_bg[CHR_BG_LEN];
 extern const unsigned char game_palette[32];
@@ -55,7 +55,11 @@ extern const unsigned char game_palette[32];
 #define TILE_ICON_CAP 46
 #define TILE_ICON_TOMATO 47
 
-#define MT_COUNT 16
+#define TILE_TITLE_JIM 123
+#define TITLE_JIM_W 4
+#define TITLE_JIM_H 6
+
+#define MT_COUNT 24
 #define MT_SKY 0
 #define MT_BRICK 1
 #define MT_DIRT 2
@@ -72,6 +76,14 @@ extern const unsigned char game_palette[32];
 #define MT_DUMPBODY 13
 #define MT_DUMPGLOW 14
 #define MT_WINDOW 15
+#define MT_GRAVESTONE 16
+#define MT_TREETRUNK 17
+#define MT_TREEBRANCH 18
+#define MT_CHAIN 19
+#define MT_PILLAR 20
+#define MT_TORCH 21
+#define MT_IVY 22
+#define MT_STAINEDGLASS 23
 extern const unsigned char mt_tl[MT_COUNT];
 extern const unsigned char mt_tr[MT_COUNT];
 extern const unsigned char mt_bl[MT_COUNT];

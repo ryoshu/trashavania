@@ -42,6 +42,7 @@ static void new_game(void) {
 static void load_room(void) {
     ppu_off();
     clear_nametable();
+    load_palette();
     draw_room(cur_room);
     player_init(rooms[cur_room].start_x, rooms[cur_room].start_y);
     spawn_room_entities(rooms[cur_room].spawns);
@@ -78,18 +79,35 @@ static void hud_update(void) {
 void enter_state(unsigned char st) {
     game_state = st;
     switch (st) {
-    case ST_TITLE:
+    case ST_TITLE: {
+        unsigned char r, tc;
         audio_song(SONG_TITLE);
         ppu_off();
         clear_nametable();
         text_screen_palette();
-        draw_text(10, 6, "TRASHAVANIA");
-        draw_text(3, 8, "THE ADVENTURES OF JIMOTHY");
-        draw_text(4, 13, "IT WAS A MISERABLE NIGHT");
-        draw_text(7, 14, "TO HAVE A CURSE.");
-        draw_text(10, 20, "PRESS START");
+        /* retint BG palette 0 for the portrait: gray outline, medium-gray
+           fur, white face (restored by load_palette on room load) */
+        ppu_set_addr(0x3F01);
+        PPUDATA = 0x00; PPUDATA = 0x2D; PPUDATA = 0x30;
+        draw_text(10, 4, "TRASHAVANIA");
+        draw_text(3, 6, "THE ADVENTURES OF JIMOTHY");
+        /* hunched hero portrait, 4x6 bg tiles, centered */
+        for (r = 0; r < TITLE_JIM_H; ++r) {
+            ppu_set_addr(0x2000 + (10 + r) * 32 + 14);
+            for (tc = 0; tc < TITLE_JIM_W; ++tc) {
+                PPUDATA = TILE_TITLE_JIM + r * TITLE_JIM_W + tc;
+            }
+        }
+        /* portrait area -> BG palette 0 (raccoon grays); the rest of the
+           text screen stays palette 2 */
+        ppu_set_addr(0x23D3); PPUDATA = 0x00; PPUDATA = 0x00;
+        ppu_set_addr(0x23DB); PPUDATA = 0x00; PPUDATA = 0x00;
+        draw_text(4, 18, "IT WAS A MISERABLE NIGHT");
+        draw_text(7, 19, "TO HAVE A CURSE.");
+        draw_text(10, 22, "PRESS START");
         ppu_on();
         break;
+    }
     case ST_GAME:
         load_room();
         break;

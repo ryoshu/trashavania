@@ -81,6 +81,12 @@ void text_screen_palette(void) {
     for (i = 0; i < 64; ++i) PPUDATA = 0xAA;
 }
 
+/* Restore the standard palette RAM (the title screen retints BG palette 0
+   for the portrait). Rendering must be off. */
+void load_palette(void) {
+    ppu_write(0x3F00, game_palette, 32);
+}
+
 /* Draw a full room: 15 metatile rows -> 30 tile rows + 64 attribute bytes.
    Rendering must be off. Also latches the room's map pointer for collision. */
 void draw_room(unsigned char room) {

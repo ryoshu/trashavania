@@ -35,7 +35,9 @@ assets: $(SRC_DIR)/assets.c
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-$(BUILD_DIR)/%.s: $(SRC_DIR)/%.c | $(BUILD_DIR)
+# Every C file includes game.h -> assets.h, so a regenerated assets.h must
+# recompile everything (CHR lengths etc. are baked in as constants).
+$(BUILD_DIR)/%.s: $(SRC_DIR)/%.c $(SRC_DIR)/game.h $(SRC_DIR)/assets.h | $(BUILD_DIR)
 	$(CC65) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.o: $(BUILD_DIR)/%.s
