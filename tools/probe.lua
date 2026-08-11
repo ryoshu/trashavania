@@ -48,9 +48,22 @@ end
 local ci = 1
 local waitleft = 0
 local tapleft = 0
+local wm_addr, wm_val, wm_limit = nil, nil, 0
 
 local function step()
   while true do
+    if wm_addr ~= nil then
+      wm_limit = wm_limit - 1
+      if memory.readbyte(wm_addr) == wm_val then
+        wm_addr = nil
+      elseif wm_limit <= 0 then
+        io.write(string.format("WAITMEM_TIMEOUT %04X want %02X got %02X\n",
+                 wm_addr, wm_val, memory.readbyte(wm_addr)))
+        wm_addr = nil
+      else
+        return
+      end
+    end
     if waitleft > 0 then
       waitleft = waitleft - 1
       return
@@ -77,6 +90,12 @@ local function step()
       return
     elseif op == "shot" then
       dump_screen(arg)
+    elseif op == "waitmem" then
+      local a, v = string.match(arg, "^(%x+):(%x+)$")
+      wm_addr = tonumber(a, 16)
+      wm_val = tonumber(v, 16)
+      wm_limit = 3600            -- give up after a minute
+      return
     elseif op == "snd" then
       local s = sound.get()
       io.write(string.format(

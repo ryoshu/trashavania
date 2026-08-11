@@ -93,3 +93,33 @@ without an emulator in the loop.
 - Verified via fceux Lua sound.get(): title plays A4 melody + triangle
   bass; castle theme + drums audible in-game. Channel frequencies match
   the intended notes.
+
+## Final verification + ship
+
+- Full scripted playthrough passes on the final ROM: power-on -> title ->
+  Garbage Grove -> Recycling Crypt (cap pickup, cat sniped, glass jumped)
+  -> Tower of Cans (checkpointed climb, candle, gnome jump-shots, hidden
+  gold) -> Chapel (tomato pickup + splat) -> Count Dumpula (12 hits across
+  weak-point windows, lid dodged by phase-sync) -> Golden Garbage ->
+  victory rank screen. Player finished at 5/8 hp.
+- Death -> restart, pause, HUD damage pips, both weapons all verified.
+- Bugs the final probes caught:
+  - **Nametable corruption on heavy frames**: if game logic overran the
+    frame, wait_vblank returned mid-render and the VRAM queue wrote to
+    wherever the PPU's address register pointed. Fix: commit OAM DMA +
+    queue only when PPUSTATUS bit 7 confirms real vblank; otherwise defer
+    one frame.
+  - Health pips never refreshed on damage (player_hurt didn't set
+    hud_dirty).
+  - Death-screen text wrapped at column 32.
+  - Tower exit ledge was unreachable: brick tiles above it occupied the
+    player's head space (head-bump killed the jump). Cleared the art.
+- Design tweaks from playtesting: tower platforms widened by one metatile
+  (the brief says authentic frustration is a non-goal), text screens use
+  the white palette.
+- Deliverables: `trashavania.nes` (65,552 bytes) committed at repo root,
+  screenshots in docs/screenshots/, this devlog, README.
+- Not done (documented for the future): hardware-cart validation (needs a
+  physical flash cart), Mesen2 GUI pass (its headless testrunner doesn't
+  work on this machine; `make run` opens it for a human), stretch content
+  (Fishbone, Possum Knight, miniboss).

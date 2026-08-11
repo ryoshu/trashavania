@@ -74,6 +74,13 @@ void clear_nametable(void) {
     for (i = 0; i < 0x400; ++i) PPUDATA = 0;
 }
 
+/* text screens: attribute palette 2 everywhere -> white font */
+void text_screen_palette(void) {
+    unsigned char i;
+    ppu_set_addr(0x23C0);
+    for (i = 0; i < 64; ++i) PPUDATA = 0xAA;
+}
+
 /* Draw a full room: 15 metatile rows -> 30 tile rows + 64 attribute bytes.
    Rendering must be off. Also latches the room's map pointer for collision. */
 void draw_room(unsigned char room) {

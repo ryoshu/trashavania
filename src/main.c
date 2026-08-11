@@ -82,6 +82,7 @@ void enter_state(unsigned char st) {
         audio_song(SONG_TITLE);
         ppu_off();
         clear_nametable();
+        text_screen_palette();
         draw_text(10, 6, "TRASHAVANIA");
         draw_text(3, 8, "THE ADVENTURES OF JIMOTHY");
         draw_text(4, 13, "IT WAS A MISERABLE NIGHT");
@@ -96,8 +97,9 @@ void enter_state(unsigned char st) {
         audio_song(SONG_DEATH);
         ppu_off();
         clear_nametable();
+        text_screen_palette();
         draw_text(6, 10, "JIMOTHY HAS EXPIRED.");
-        draw_text(5, 12, "THE TRASH REMAINS UNCLAIMED.");
+        draw_text(2, 12, "THE TRASH REMAINS UNCLAIMED.");
         draw_text(8, 18, "PRESS START");
         ppu_on();
         break;
@@ -107,6 +109,7 @@ void enter_state(unsigned char st) {
         audio_song(SONG_VICTORY);
         ppu_off();
         clear_nametable();
+        text_screen_palette();
         draw_text(2, 6, "THE GOLDEN GARBAGE IS YOURS!");
         draw_text(4, 9, "JIMOTHY HAS NO MASTER.");
         draw_text(4, 10, "JIMOTHY HAS SNACKS.");
@@ -204,8 +207,15 @@ void main(void) {
     while (1) {
         /* ---- vblank window: commit graphics ---- */
         wait_vblank();
-        ppu_update();            /* OAM DMA first (must finish in vblank) */
-        vbuf_flush();
+        /* If the last logic frame overran, wait_vblank returns mid-render;
+           OAM DMA or PPUDATA writes now would land at whatever address the
+           PPU is fetching from (= random nametable corruption). Commit only
+           when PPUSTATUS confirms we are really inside vblank; otherwise
+           the queue simply flushes next frame. */
+        if (PPUSTATUS & 0x80) {
+            ppu_update();        /* OAM DMA first (must finish in vblank) */
+            vbuf_flush();
+        }
         PPUSTATUS;               /* PPUADDR use above corrupts scroll: reset */
         PPUCTRL = PPUCTRL_GAME;
         PPUSCROLL = 0;

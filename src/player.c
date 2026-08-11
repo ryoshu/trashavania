@@ -38,6 +38,7 @@ void player_hurt(unsigned char from_left, unsigned char dmg) {
     knock_dir = from_left;   /* pushed right if hit from left */
     pvy = -0x0200;
     on_ground = 0;
+    hud_dirty = 1;
     audio_sfx(SFX_HURT);
     /* hud + death handled by main.c */
 }

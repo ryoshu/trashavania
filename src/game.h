@@ -90,6 +90,7 @@ extern const unsigned char *room_map;
 void ppu_off(void);
 void ppu_on(void);
 void clear_nametable(void);
+void text_screen_palette(void);
 void draw_room(unsigned char room);
 void draw_text(unsigned char tx, unsigned char ty, const char *s);
 void vbuf_text(unsigned char tx, unsigned char ty, const char *s);
