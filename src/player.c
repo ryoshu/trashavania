@@ -38,6 +38,7 @@ void player_hurt(unsigned char from_left, unsigned char dmg) {
     knock_dir = from_left;   /* pushed right if hit from left */
     pvy = -0x0200;
     on_ground = 0;
+    audio_sfx(SFX_HURT);
     /* hud + death handled by main.c */
 }
 
@@ -152,6 +153,7 @@ void player_frame(void) {
         on_ground = 0;
         coyote = 0;
         jump_buf = 0;
+        audio_sfx(SFX_JUMP);
     }
     /* variable jump height: release A while rising cuts velocity */
     if (!(pad & PAD_A) && pvy < -0x0100) pvy = -0x0100;
@@ -159,10 +161,17 @@ void player_frame(void) {
     /* swipe */
     if ((pad_new & PAD_B) && !(pad & PAD_UP) && !attack_timer) {
         attack_timer = ATTACK_LEN;
+        audio_sfx(SFX_SWIPE);
     }
 
     move_horizontal();
     move_vertical();
+
+    /* standing in broken glass or other hazard tiles */
+    if (coll_at(pixx + 8, pixy + HB_Y1) == COLL_HAZARD ||
+        coll_at(pixx + 8, pixy + 16) == COLL_HAZARD) {
+        player_hurt(facing_left ? 0 : 1, 1);    /* knocked back the way we came */
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -196,5 +205,14 @@ void player_draw(void) {
         draw_meta(pixx, pixy + 8, tile, 2, 2, attr);
     } else {
         draw_meta(pixx, pixy, tile, 2, 3, attr);
+    }
+
+    /* claw slash effect at the fist during the active swipe window */
+    if (tile == SPR_JIM_SWIPE) {
+        if (facing_left) {
+            draw_meta(pixx - 8, pixy + 10, SPR_SLASH, 1, 1, 0x42);
+        } else {
+            draw_meta(pixx + 16, pixy + 10, SPR_SLASH, 1, 1, 0x02);
+        }
     }
 }

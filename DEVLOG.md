@@ -45,3 +45,26 @@ without an emulator in the loop.
   Mesen2 `--testrunner` doesn't work on this machine (exit 255 / hang).
 - Art batch 2 done: bat/cat/gnome enemies, bag/candle containers, all
   pickups, projectiles, HUD tiles. Jimothy got his signature ringed tail.
+
+## Combat, entities, all 5 rooms, boss code
+
+- entities.c: SoA pools (6 enemies, 4 pickups, 3+3 projectiiles, 2 effects);
+  bat wave flight, cat pace/charge/stun, gnome shard throws, breakable
+  bag/candle containers, snack economy, cap + tomato weapons (tomato
+  splats into a floor damage zone), swipe with projectile deflection.
+- Verified in-emulator: swipe breaks bag -> Family-Size Snack (+5) drops
+  and collects; cat charge does contact damage with mercy invincibility;
+  glass hazard tiles hurt; bottle cap fires with Up+B, costs snacks,
+  HUD live-updates (icon + count).
+- **vblank budget lesson**: 12 separate 1-tile VRAM queue entries
+  overran the ~2273-cycle vblank window in cc65 code and the tail writes
+  were lost mid-screen; batching runs (vbuf_run) fixed the missing HUD.
+- All 5 rooms authored: Garbage Grove, Recycling Crypt, Tower of Cans
+  (vertical zigzag climb), Chapel of Questionable Leftovers, The Moonlit
+  Dumpster (boss arena with bg-tile dumpster + sprite lid/eyes).
+- **ROM banking**: fixed 16KB bank overflowed; all generated asset data
+  (~4.9KB) now lives in PRG bank 0, selected once at reset (bus-conflict-
+  safe write) and never switched. Fixed bank back to ~2.2KB free.
+- boss.c: Count Dumpula -- lid telegraph/rise/track/slam cycle, garbage
+  toss arcs, boss-bat summons, weak point open phase; accelerates below
+  half HP; death -> Golden Garbage drop -> collecting it wins the game.

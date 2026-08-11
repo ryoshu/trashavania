@@ -77,6 +77,15 @@ local function step()
       return
     elseif op == "shot" then
       dump_screen(arg)
+    elseif op == "dump" then
+      local a, n = string.match(arg, "^(%x+):(%d+)$")
+      a = tonumber(a, 16)
+      local out = {}
+      for k = 0, tonumber(n) - 1 do
+        out[#out + 1] = string.format("%02X", memory.readbyte(a + k))
+      end
+      io.write("DUMP " .. string.format("%04X", a) .. " " ..
+               table.concat(out, " ") .. "\n")
     elseif op == "read" then
       local name, addr = string.match(arg, "^([%w_]+):(%x+)$")
       io.write(string.format("VAR %s = %d\n", name,

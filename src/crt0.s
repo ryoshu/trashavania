@@ -118,10 +118,22 @@ vblank2:
         jsr     copydata
         jsr     zerobss
 
+        ; select PRG bank 0 at $8000-$BFFF and leave it there forever --
+        ; big read-only data (CHR, room maps, songs) lives in that bank.
+        ; UxROM has bus conflicts: the written value is ANDed with the ROM
+        ; byte at that address, so write 0 to a location that contains 0.
+        lda     #0
+        sta     bank0_sel
+
         jsr     _main
         ; _main never returns (infinite loop in main.c), but if it ever did:
 forever:
         jmp     forever
+
+.segment "RODATA"
+
+bank0_sel:
+        .byte   0
 
 ; ---------------------------------------------------------------------------
 ; NMI handler -- runs once per vblank once PPUCTRL_NMI_ENABLE is set.

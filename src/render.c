@@ -140,6 +140,15 @@ void vbuf_tile(unsigned char tx, unsigned char ty, unsigned char tile) {
     if (p) *p = tile;
 }
 
+/* one entry covering a horizontal run of tiles -- far cheaper to flush
+   than per-tile entries (vblank budget!) */
+void vbuf_run(unsigned char tx, unsigned char ty,
+              const unsigned char *tiles, unsigned char len) {
+    unsigned char *p = vbuf_entry(0x2000 + ty * 32 + tx, len);
+    if (!p) return;
+    while (len--) *p++ = *tiles++;
+}
+
 /* ------------------------------------------------------------------ */
 /* OAM */
 

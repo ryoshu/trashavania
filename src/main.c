@@ -22,6 +22,10 @@ unsigned char anim_timer, anim_frame;
 
 #define PPUCTRL_GAME (PPUCTRL_NMI_ENABLE | PPUCTRL_BG_PT_1000)
 
+unsigned char victory_pending;
+static unsigned int play_sec;
+static unsigned char sec_frames;
+
 /* ------------------------------------------------------------------ */
 
 static void new_game(void) {
@@ -29,6 +33,10 @@ static void new_game(void) {
     hp = MAX_HP;
     snacks = 0;
     weapon = 0;
+    gold_count = 0;
+    victory_pending = 0;
+    play_sec = 0;
+    sec_frames = 0;
 }
 
 static void load_room(void) {
@@ -36,8 +44,33 @@ static void load_room(void) {
     clear_nametable();
     draw_room(cur_room);
     player_init(rooms[cur_room].start_x, rooms[cur_room].start_y);
+    spawn_room_entities(rooms[cur_room].spawns);
+    if (cur_room == ROOM_COUNT - 1) {
+        boss_init();
+    } else {
+        boss_active = 0;
+    }
     vbuf_reset();
+    hud_dirty = 1;
     ppu_on();
+}
+
+static void hud_update(void) {
+    unsigned char i;
+    unsigned char row[8];
+    if (!hud_dirty) return;
+    hud_dirty = 0;
+    for (i = 0; i < MAX_HP; ++i) {
+        row[i] = (i < hp) ? TILE_PIP_FULL : TILE_PIP_EMPTY;
+    }
+    vbuf_run(2, 1, row, 8);
+    row[0] = TILE_SNACK_ICON;
+    row[1] = FONT_0 + snacks / 10;
+    row[2] = FONT_0 + snacks % 10;
+    vbuf_run(12, 1, row, 3);
+    if (weapon) {
+        vbuf_tile(17, 1, (weapon == 1) ? TILE_ICON_CAP : TILE_ICON_TOMATO);
+    }
 }
 
 void enter_state(unsigned char st) {
@@ -64,15 +97,43 @@ void enter_state(unsigned char st) {
         draw_text(8, 18, "PRESS START");
         ppu_on();
         break;
-    case ST_VICTORY:
+    case ST_VICTORY: {
+        unsigned char score, m;
+        unsigned char buf[5];
         ppu_off();
         clear_nametable();
-        draw_text(4, 8, "THE GOLDEN GARBAGE IS YOURS!");
-        draw_text(4, 12, "JIMOTHY HAS NO MASTER.");
-        draw_text(4, 13, "JIMOTHY HAS SNACKS.");
-        draw_text(8, 20, "PRESS START");
+        draw_text(2, 6, "THE GOLDEN GARBAGE IS YOURS!");
+        draw_text(4, 9, "JIMOTHY HAS NO MASTER.");
+        draw_text(4, 10, "JIMOTHY HAS SNACKS.");
+
+        m = (unsigned char)(play_sec / 60);
+        if (m > 9) m = 9;
+        draw_text(8, 13, "TIME    :");
+        buf[0] = FONT_0 + m;
+        ppu_set_addr(0x2000 + 13 * 32 + 15);
+        PPUDATA = buf[0];
+        PPUDATA = FONT_COLON;
+        PPUDATA = FONT_0 + (unsigned char)((play_sec % 60) / 10);
+        PPUDATA = FONT_0 + (unsigned char)(play_sec % 10);
+        draw_text(8, 14, "HEALTH");
+        ppu_set_addr(0x2000 + 14 * 32 + 15);
+        PPUDATA = FONT_0 + hp;
+        draw_text(8, 15, "GOLD");
+        ppu_set_addr(0x2000 + 15 * 32 + 15);
+        PPUDATA = FONT_0 + gold_count;
+
+        score = hp + (gold_count << 2);
+        if (play_sec < 240) score += 6;
+        else if (play_sec < 420) score += 3;
+        draw_text(6, 18, "RACCOON RANK:");
+        if (score >= 16)      draw_text(6, 19, "TRASH PANDA SUPREME");
+        else if (score >= 11) draw_text(6, 19, "DUMPSTER DUKE");
+        else if (score >= 6)  draw_text(6, 19, "ALLEY APPRENTICE");
+        else                  draw_text(6, 19, "SOGGY BUT TRIUMPHANT");
+        draw_text(10, 23, "PRESS START");
         ppu_on();
         break;
+    }
     }
 }
 
@@ -82,6 +143,7 @@ static void check_door(void) {
     unsigned char dest;
     if (coll_at(pixx + 8, pixy + 12) != COLL_DOOR) return;
     dest = rooms[cur_room].door_dest;
+    audio_sfx(SFX_DOOR);
     if (dest >= ROOM_COUNT) {
         enter_state(ST_VICTORY);
     } else {
@@ -96,13 +158,26 @@ static void game_frame(void) {
         vbuf_text(13, 2, "PAUSED");
         return;
     }
+    if (++sec_frames == 60) {
+        sec_frames = 0;
+        ++play_sec;
+    }
     player_frame();
+    entities_frame();
+    boss_frame();
     check_door();
     if (hp == 0) {
         enter_state(ST_DEATH);
         return;
     }
+    if (victory_pending) {
+        enter_state(ST_VICTORY);
+        return;
+    }
+    hud_update();
     player_draw();
+    entities_draw();
+    boss_draw();
 }
 
 static void pause_frame(void) {
@@ -111,12 +186,14 @@ static void pause_frame(void) {
         vbuf_text(13, 2, "      ");
     }
     player_draw();
+    entities_draw();
 }
 
 /* ------------------------------------------------------------------ */
 
 void main(void) {
     load_chr();
+    audio_init();
     enter_state(ST_TITLE);
 
     while (1) {
@@ -160,6 +237,7 @@ void main(void) {
             break;
         }
         hide_rest_of_oam();
+        audio_frame();
         ++frame_cnt;
     }
 }

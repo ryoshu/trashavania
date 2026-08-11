@@ -15,6 +15,7 @@ TARGET      := $(BUILD_DIR)/trashavania.nes
 MAP         := $(BUILD_DIR)/trashavania.map
 
 C_SOURCES   := $(SRC_DIR)/main.c $(SRC_DIR)/render.c $(SRC_DIR)/player.c \
+               $(SRC_DIR)/entities.c $(SRC_DIR)/boss.c $(SRC_DIR)/audio.c \
                $(SRC_DIR)/assets.c $(SRC_DIR)/ppu.c $(SRC_DIR)/pad.c
 ASM_SOURCES := $(SRC_DIR)/crt0.s
 

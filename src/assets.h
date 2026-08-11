@@ -2,8 +2,8 @@
 #ifndef ASSETS_H
 #define ASSETS_H
 
-#define CHR_SPRITES_LEN 1536
-#define CHR_BG_LEN 1232
+#define CHR_SPRITES_LEN 1632
+#define CHR_BG_LEN 1504
 extern const unsigned char chr_sprites[CHR_SPRITES_LEN];
 extern const unsigned char chr_bg[CHR_BG_LEN];
 extern const unsigned char game_palette[32];
@@ -36,6 +36,9 @@ extern const unsigned char game_palette[32];
 #define SPR_BURRITO 90  /* 1x1 tiles */
 #define SPR_GOLD 91  /* 2x2 tiles */
 #define SPR_MYSTERY 95  /* 1x1 tiles */
+#define SPR_LID 96  /* 4x1 tiles */
+#define SPR_EYE 100  /* 1x1 tiles */
+#define SPR_GARB 101  /* 1x1 tiles */
 
 #define FONT_A 1
 #define FONT_0 27
@@ -52,7 +55,7 @@ extern const unsigned char game_palette[32];
 #define TILE_ICON_CAP 46
 #define TILE_ICON_TOMATO 47
 
-#define MT_COUNT 10
+#define MT_COUNT 16
 #define MT_SKY 0
 #define MT_BRICK 1
 #define MT_DIRT 2
@@ -62,7 +65,13 @@ extern const unsigned char game_palette[32];
 #define MT_TRASHPILE 6
 #define MT_DOORTOP 7
 #define MT_DOORBOTTOM 8
-#define MT_WINDOW 9
+#define MT_CANS 9
+#define MT_BENCH 10
+#define MT_GLASS 11
+#define MT_DUMPRIM 12
+#define MT_DUMPBODY 13
+#define MT_DUMPGLOW 14
+#define MT_WINDOW 15
 extern const unsigned char mt_tl[MT_COUNT];
 extern const unsigned char mt_tr[MT_COUNT];
 extern const unsigned char mt_bl[MT_COUNT];
@@ -87,7 +96,7 @@ extern const unsigned char mt_coll[MT_COUNT];
 #define SP_WEAPON_CAP 10
 #define SP_WEAPON_TOMATO 11
 
-#define ROOM_COUNT 1
+#define ROOM_COUNT 5
 typedef struct {
     const unsigned char *map;    /* 240 metatile ids */
     const unsigned char *attr;   /* 64 attribute bytes */

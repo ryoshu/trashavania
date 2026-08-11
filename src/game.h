@@ -4,6 +4,7 @@
 
 #include "nes.h"
 #include "assets.h"
+#include "audio.h"
 
 /* ------------------------------------------------------------------ */
 /* Game states */
@@ -93,6 +94,8 @@ void draw_room(unsigned char room);
 void draw_text(unsigned char tx, unsigned char ty, const char *s);
 void vbuf_text(unsigned char tx, unsigned char ty, const char *s);
 void vbuf_tile(unsigned char tx, unsigned char ty, unsigned char tile);
+void vbuf_run(unsigned char tx, unsigned char ty,
+              const unsigned char *tiles, unsigned char len);
 void vbuf_flush(void);
 void vbuf_reset(void);
 void load_chr(void);
@@ -108,7 +111,31 @@ void player_hurt(unsigned char from_left, unsigned char dmg);
 unsigned char mt_at(unsigned char x, unsigned char y);
 unsigned char coll_at(unsigned char x, unsigned char y);
 
+/* entities.c */
+void entities_reset(void);
+void spawn_room_entities(const unsigned char *sp);
+unsigned char spawn_enemy(unsigned char type, unsigned char x, unsigned char y);
+unsigned char spawn_pickup(unsigned char type, unsigned char x, unsigned char y);
+void spawn_effect(unsigned char x, unsigned char y);
+void entities_frame(void);
+void entities_draw(void);
+void weapon_fire(void);
+void spawn_garbage(unsigned char x, unsigned char y);
+unsigned char attack_hits_box(unsigned char x, unsigned char y,
+                              unsigned char w, unsigned char h);
+extern unsigned char gold_count;
+extern unsigned char hud_dirty;
+
+/* boss.c */
+void boss_init(void);
+void boss_frame(void);
+void boss_draw(void);
+extern unsigned char boss_active, boss_hp, boss_defeated;
+extern unsigned char e_type[], e_x[], e_y[], e_hp[], e_state[], e_timer[],
+                     e_dir[], e_var[], e_sub[], e_flash[];
+
 /* main.c */
 void enter_state(unsigned char st);
+extern unsigned char victory_pending;
 
 #endif
