@@ -106,4 +106,10 @@ typedef struct {
 } RoomDef;
 extern const RoomDef rooms[ROOM_COUNT];
 
+#define NUM_NOTES 60
+extern const unsigned char period_lo[NUM_NOTES + 1];
+extern const unsigned char period_hi[NUM_NOTES + 1];
+#define SONG_COUNT 5
+extern const unsigned char * const song_streams[SONG_COUNT][4];
+
 #endif /* ASSETS_H */

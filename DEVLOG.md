@@ -80,3 +80,16 @@ without an emulator in the loop.
 - Weak point box widened 4px: a player pressed against the dumpster wall
   swiped from x=160 but the box ended at 159 (guaranteed whiff).
 - Summoned bats now die with their master (clear_enemies on boss death).
+
+## Audio: driver + 5 tracks + 11 SFX
+
+- audio.c: pulse1 melody / pulse2 harmony / triangle bass / noise drums.
+  Songs authored as note strings in the generator ("A4:16 C5:8 R:8"),
+  compiled to [note,dur] streams with loop/end markers; NTSC period table
+  computed from the formula at build time. SFX borrow pulse2 or noise by
+  priority and hand the channel back to the music when done.
+- Tracks: gothic A-minor title, driving E-minor castle theme, frantic
+  D-minor boss ostinato, victory fanfare, death sting.
+- Verified via fceux Lua sound.get(): title plays A4 melody + triangle
+  bass; castle theme + drums audible in-game. Channel frequencies match
+  the intended notes.

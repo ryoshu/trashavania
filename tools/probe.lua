@@ -77,6 +77,13 @@ local function step()
       return
     elseif op == "shot" then
       dump_screen(arg)
+    elseif op == "snd" then
+      local s = sound.get()
+      io.write(string.format(
+        "SND p1v=%.2f p1f=%.0f p2v=%.2f triv=%.2f trif=%.0f noiv=%.2f\n",
+        s.rp2a03.square1.volume, s.rp2a03.square1.frequency,
+        s.rp2a03.square2.volume, s.rp2a03.triangle.volume,
+        s.rp2a03.triangle.frequency, s.rp2a03.noise.volume))
     elseif op == "dump" then
       local a, n = string.match(arg, "^(%x+):(%d+)$")
       a = tonumber(a, 16)

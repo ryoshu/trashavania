@@ -1335,6 +1335,124 @@ BBBBBBBBBBBBBBBB
 ]
 
 # ===========================================================================
+# AUDIO -- note period table + songs.
+#
+# Songs are written as note strings: "A4:16 C5:8 R:8 ..." where the number
+# is duration in frames (60 fps; 8 frames = one eighth note at ~112 BPM).
+# Stream encoding consumed by audio.c: [note, dur]* then 0xFF (loop) or
+# 0xFE (end/sting). Note 0 is a rest. The noise channel uses drum names
+# K (kick) S (snare) H (hat) instead of pitches.
+# ===========================================================================
+
+NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+BASE_OCTAVE = 2
+NUM_NOTES = 60          # C2..B6, index 1..60 (0 = rest)
+
+
+def note_index(name):
+    if name == "R":
+        return 0
+    if name in ("K", "S", "H"):                 # noise drums
+        return {"K": 1, "S": 2, "H": 3}[name]
+    octave = int(name[-1])
+    if octave < BASE_OCTAVE:
+        octave = BASE_OCTAVE    # the triangle already sounds an octave down
+    semi = NOTE_NAMES.index(name[:-1])
+    idx = (octave - BASE_OCTAVE) * 12 + semi + 1
+    assert 1 <= idx <= NUM_NOTES, name
+    return idx
+
+
+def note_period(idx):
+    freq = 440.0 * 2 ** ((idx - 1 - 9 - 24) / 12.0)     # idx 1 = C2
+    return int(round(1789773.0 / (16.0 * freq))) - 1
+
+
+def compile_stream(s, loop=True):
+    out = []
+    total = 0
+    for tok in s.split():
+        name, dur = tok.split(":")
+        dur = int(dur)
+        idx = note_index(name)
+        while dur > 255:
+            out += [idx, 255]
+            dur -= 255
+        out += [idx, dur]
+        total += int(tok.split(":")[1])
+    out.append(0xFF if loop else 0xFE)
+    return out, total
+
+
+class Song:
+    def __init__(self, name, p1, p2, tri, noise, loop=True):
+        self.name = name
+        self.loop = loop
+        self.streams = []
+        lens = []
+        for s in (p1, p2, tri, noise):
+            if s is None:
+                self.streams.append(None)
+                continue
+            data, total = compile_stream(s, loop)
+            self.streams.append(data)
+            lens.append((total, s))
+        if loop and len(set(l for l, _ in lens)) > 1:
+            print("WARNING: %s stream lengths differ: %s" %
+                  (name, [l for l, _ in lens]))
+
+
+SONGS = [
+    # Title: slow gothic arpeggio in A minor, mournful and grand
+    Song("title",
+         p1="A4:16 C5:16 B4:8 A4:8 G4:16 A4:8 B4:8 C5:16 E5:16 D5:8 C5:8 "
+            "B4:32 A4:16 C5:16 B4:8 A4:8 G4:16 E4:8 G4:8 A4:12 R:4",
+         p2="A3:32 E3:32 F3:32 G3:32 A3:32 F3:16 G3:16 A3:32 E3:16 E3:16",
+         tri="A2:32 E2:32 F2:32 G2:32 A2:32 F2:32 G2:16 E2:16 A2:32",
+         noise="R:32 R:32 R:32 R:32 R:32 R:32 R:32 R:32"),
+
+    # Castle: driving E-minor crawl through the crypt
+    Song("castle",
+         p1="E4:8 G4:8 B4:8 G4:8 E4:8 G4:8 B4:8 G4:8 "
+            "C4:8 E4:8 A4:8 E4:8 C4:8 E4:8 A4:8 E4:8 "
+            "D4:8 F#4:8 A4:8 F#4:8 D4:8 F#4:8 A4:8 F#4:8 "
+            "B3:8 D#4:8 F#4:8 D#4:8 B3:8 D#4:8 F#4:8 B4:8",
+         p2="E3:64 C3:64 D3:64 B2:64",
+         tri="E2:16 E2:16 E3:16 E2:16 C2:16 C2:16 C3:16 C2:16 "
+             "D2:16 D2:16 D3:16 D2:16 B1:16 B2:16 F#2:16 B2:16",
+         noise="K:8 H:8 S:8 H:8 K:8 H:8 S:8 H:8 K:8 H:8 S:8 H:8 K:8 H:8 S:8 H:8 "
+               "K:8 H:8 S:8 H:8 K:8 H:8 S:8 H:8 K:8 H:8 S:8 H:8 K:8 S:8 S:8 S:8"),
+
+    # Boss: frantic D-minor ostinato for Count Dumpula
+    Song("boss",
+         p1="D4:8 F4:8 A4:8 F4:8 D4:8 F4:8 A#4:8 F4:8 "
+            "D4:8 F4:8 A4:8 F4:8 C5:8 A#4:8 A4:8 G4:8",
+         p2="D3:16 D3:16 A#2:16 A#2:16 D3:16 D3:16 C3:16 C3:16",
+         tri="D2:8 D2:8 D3:8 D2:8 A#1:8 A#1:8 A#2:8 A#1:8 "
+             "D2:8 D2:8 D3:8 D2:8 C2:8 C2:8 C3:8 C2:8",
+         noise="K:8 S:8 K:8 S:8 K:8 S:8 K:4 K:4 S:8 "
+               "K:8 S:8 K:8 S:8 K:8 S:4 S:4 K:8 S:8"),
+
+    # Victory sting (plays once)
+    Song("victory",
+         p1="C5:8 E5:8 G5:8 C6:28 R:4",
+         p2="C4:8 G4:8 E5:8 E5:28 R:4",
+         tri="C3:8 C3:8 C3:8 C4:28 R:4",
+         noise="R:8 R:8 R:8 K:28 R:4",
+         loop=False),
+
+    # Death sting (plays once)
+    Song("death",
+         p1="A4:12 G#4:12 G4:12 F#4:24 R:4",
+         p2="F4:12 E4:12 D#4:12 D4:24 R:4",
+         tri="A2:12 G#2:12 G2:12 F#2:24 R:4",
+         noise="R:12 R:12 R:12 K:24 R:4",
+         loop=False),
+]
+
+STREAM_SUFFIX = ["p1", "p2", "tri", "noise"]
+
+# ===========================================================================
 # Emission
 # ===========================================================================
 
@@ -1510,6 +1628,34 @@ def emit():
         entries.append("    { room%d_map, room%d_attr, room%d_spawns, %d, %d, %s }"
                        % (i, i, i, room.player_start[0], room.player_start[1], dest))
     c.append("const RoomDef rooms[ROOM_COUNT] = {\n%s\n};" % ",\n".join(entries))
+
+    # audio: period tables + song streams
+    h.append("")
+    h.append("#define NUM_NOTES %d" % NUM_NOTES)
+    h.append("extern const unsigned char period_lo[NUM_NOTES + 1];")
+    h.append("extern const unsigned char period_hi[NUM_NOTES + 1];")
+    plo = [0] + [note_period(i) & 0xFF for i in range(1, NUM_NOTES + 1)]
+    phi = [0] + [(note_period(i) >> 8) & 0x07 for i in range(1, NUM_NOTES + 1)]
+    c.append("const unsigned char period_lo[NUM_NOTES + 1] = {\n%s\n};" % c_bytes(plo))
+    c.append("const unsigned char period_hi[NUM_NOTES + 1] = {\n%s\n};" % c_bytes(phi))
+
+    h.append("#define SONG_COUNT %d" % len(SONGS))
+    for song in SONGS:
+        for si, data in enumerate(song.streams):
+            if data is None:
+                continue
+            c.append("static const unsigned char sng_%s_%s[] = {\n%s\n};"
+                     % (song.name, STREAM_SUFFIX[si], c_bytes(data)))
+    h.append("extern const unsigned char * const song_streams[SONG_COUNT][4];")
+    rows = []
+    for song in SONGS:
+        cells = []
+        for si, data in enumerate(song.streams):
+            cells.append("0" if data is None
+                         else "sng_%s_%s" % (song.name, STREAM_SUFFIX[si]))
+        rows.append("    { %s }" % ", ".join(cells))
+    c.append("const unsigned char * const song_streams[SONG_COUNT][4] = {\n%s\n};"
+             % ",\n".join(rows))
 
     h.append("")
     h.append("#endif /* ASSETS_H */")

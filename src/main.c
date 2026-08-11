@@ -47,8 +47,10 @@ static void load_room(void) {
     spawn_room_entities(rooms[cur_room].spawns);
     if (cur_room == ROOM_COUNT - 1) {
         boss_init();
+        audio_song(SONG_BOSS);
     } else {
         boss_active = 0;
+        audio_song(SONG_CASTLE);
     }
     vbuf_reset();
     hud_dirty = 1;
@@ -77,6 +79,7 @@ void enter_state(unsigned char st) {
     game_state = st;
     switch (st) {
     case ST_TITLE:
+        audio_song(SONG_TITLE);
         ppu_off();
         clear_nametable();
         draw_text(10, 6, "TRASHAVANIA");
@@ -90,6 +93,7 @@ void enter_state(unsigned char st) {
         load_room();
         break;
     case ST_DEATH:
+        audio_song(SONG_DEATH);
         ppu_off();
         clear_nametable();
         draw_text(6, 10, "JIMOTHY HAS EXPIRED.");
@@ -100,6 +104,7 @@ void enter_state(unsigned char st) {
     case ST_VICTORY: {
         unsigned char score, m;
         unsigned char buf[5];
+        audio_song(SONG_VICTORY);
         ppu_off();
         clear_nametable();
         draw_text(2, 6, "THE GOLDEN GARBAGE IS YOURS!");
